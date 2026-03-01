@@ -104,18 +104,26 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
     private final boolean createCollectionIfNotExists;
 
     /** High-level client used for collection management (create, get, delete, list). */
-    private Client client;
+    private final Client client;
 
     /** Low-level API used for data operations (get, add, delete, query by embedding). */
-    private DefaultApi api;
+    private final DefaultApi api;
 
     public ChromaVectorStore(
             ResourceDescriptor descriptor, BiFunction<String, ResourceType, Resource> getResource) {
         super(descriptor, getResource);
 
+        // Must initialise host/port before getBasePath()
         this.host = Objects.requireNonNullElse(descriptor.getArgument("host"), "localhost");
         Integer portArg = descriptor.getArgument("port");
         this.port = (portArg != null) ? portArg : 8000;
+
+        String basePath = getBasePath();
+        this.client = new Client(basePath);
+        ApiClient apiClient = new ApiClient();
+        apiClient.setBasePath(basePath);
+        this.api = new DefaultApi(apiClient);
+
         this.collectionName =
                 Objects.requireNonNullElse(
                         descriptor.getArgument("collection"), DEFAULT_COLLECTION);
@@ -131,23 +139,6 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
         return String.format("http://%s:%d", this.host, this.port);
     }
 
-    private Client getClient() {
-        if (this.client == null) {
-            this.client = new Client(getBasePath());
-        }
-        return this.client;
-    }
-
-    /** Returns the low-level API for direct data operations. */
-    private DefaultApi getApi() {
-        if (this.api == null) {
-            ApiClient apiClient = new ApiClient();
-            apiClient.setBasePath(getBasePath());
-            this.api = new DefaultApi(apiClient);
-        }
-        return this.api;
-    }
-
     @Override
     public void close() throws Exception {
         // ChromaDB HTTP client does not require explicit close.
@@ -159,7 +150,7 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
         try {
             Map<String, String> chromaMeta = ensureEmbeddingFunctionKey(toStringMap(metadata));
             tech.amikos.chromadb.Collection col =
-                    getClient().createCollection(name, chromaMeta, true, null);
+                    this.client.createCollection(name, chromaMeta, true, null);
             Map<String, Object> returnedMeta = col.getMetadata();
             return new Collection(
                     name,
@@ -174,7 +165,7 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
     @Override
     public Collection getCollection(String name) throws Exception {
         try {
-            tech.amikos.chromadb.Collection col = getClient().getCollection(name, null);
+            tech.amikos.chromadb.Collection col = this.client.getCollection(name, null);
             Map<String, Object> meta = col.getMetadata();
             return new Collection(name, meta != null ? meta : Collections.emptyMap());
         } catch (ApiException e) {
@@ -186,7 +177,7 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
     public Collection deleteCollection(String name) throws Exception {
         Collection collection = getCollection(name);
         try {
-            getClient().deleteCollection(name);
+            this.client.deleteCollection(name);
         } catch (ApiException e) {
             throw new RuntimeException("Failed to delete ChromaDB collection: " + name, e);
         }
@@ -206,7 +197,7 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
     public long size(@Nullable String collection) throws Exception {
         String colName = resolveCollection(collection);
         try {
-            tech.amikos.chromadb.Collection chromaCol = getClient().getCollection(colName, null);
+            tech.amikos.chromadb.Collection chromaCol = this.client.getCollection(colName, null);
             return chromaCol.count();
         } catch (ApiException e) {
             throw new RuntimeException("Failed to count documents in collection: " + colName, e);
@@ -249,7 +240,7 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
                 req.offset(offset);
             }
 
-            Object rawResponse = getApi().get(req, collectionId);
+            Object rawResponse = this.api.get(req, collectionId);
             tech.amikos.chromadb.Collection.GetResult result =
                     deserialize(rawResponse, tech.amikos.chromadb.Collection.GetResult.class);
 
@@ -273,7 +264,7 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
             if (ids == null && where == null && whereDoc == null) {
                 // Delete all: fetch IDs first (mirrors Python behavior).
                 GetEmbedding getAll = new GetEmbedding();
-                Object rawAll = getApi().get(getAll, collectionId);
+                Object rawAll = this.api.get(getAll, collectionId);
                 tech.amikos.chromadb.Collection.GetResult all =
                         deserialize(rawAll, tech.amikos.chromadb.Collection.GetResult.class);
                 ids = all.getIds();
@@ -293,7 +284,7 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
                 req.whereDocument(whereDoc);
             }
 
-            getApi().delete(req, collectionId);
+            this.api.delete(req, collectionId);
         } catch (ApiException e) {
             throw new IOException("Failed to delete documents from ChromaDB", e);
         }
@@ -331,7 +322,7 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
                 body.where(where);
             }
 
-            Object rawResponse = getApi().getNearestNeighbors(body, collectionId);
+            Object rawResponse = this.api.getNearestNeighbors(body, collectionId);
             tech.amikos.chromadb.Collection.QueryResponse response =
                     deserialize(rawResponse, tech.amikos.chromadb.Collection.QueryResponse.class);
 
@@ -349,7 +340,6 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
      * {@link tech.amikos.chromadb.Embedding} objects.
      */
     @Override
-    @SuppressWarnings("unchecked")
     protected List<String> addEmbedding(
             List<Document> documents, @Nullable String collection, Map<String, Object> extraArgs)
             throws IOException {
@@ -377,14 +367,16 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
                     docs.add(doc.getContent());
 
                     float[] emb = doc.getEmbedding();
-                    if (emb != null) {
+                    if (emb != null && emb.length > 0) {
                         List<Float> embList = new ArrayList<>(emb.length);
                         for (float v : emb) {
                             embList.add(v);
                         }
                         embeddings.add(embList);
                     } else {
-                        embeddings.add(Collections.emptyList());
+                        throw new IllegalArgumentException(
+                                String.format(
+                                        "Document '%s' is missing a pre-computed embedding", id));
                     }
 
                     metadatas.add(
@@ -398,7 +390,7 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
                 req.setIds(ids);
                 req.incrementIndex(true);
 
-                getApi().add(req, collectionId);
+                this.api.add(req, collectionId);
                 allIds.addAll(ids);
             }
 
@@ -417,7 +409,7 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
      * DefaultApi} methods which identify collections by ID, not name.
      */
     private String getCollectionId(String collectionName) throws ApiException {
-        tech.amikos.chromadb.Collection col = getClient().getCollection(collectionName, null);
+        tech.amikos.chromadb.Collection col = this.client.getCollection(collectionName, null);
         return col.getId();
     }
 
@@ -442,9 +434,9 @@ public class ChromaVectorStore extends BaseVectorStore implements CollectionMana
                             castToStringMap(
                                     args.getOrDefault(
                                             "collection_metadata", this.collectionMetadata)));
-            col = getClient().createCollection(colName, meta, true, null);
+            col = this.client.createCollection(colName, meta, true, null);
         } else {
-            col = getClient().getCollection(colName, null);
+            col = this.client.getCollection(colName, null);
         }
         return col.getId();
     }
