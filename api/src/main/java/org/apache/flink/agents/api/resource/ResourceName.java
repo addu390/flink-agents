@@ -159,6 +159,10 @@ public final class ResourceName {
         public static final String ELASTICSEARCH_VECTOR_STORE =
                 "org.apache.flink.agents.integrations.vectorstores.elasticsearch.ElasticsearchVectorStore";
 
+        // Chroma
+        public static final String CHROMA_VECTOR_STORE =
+                "org.apache.flink.agents.integrations.vectorstores.chroma.ChromaVectorStore";
+
         // Python Wrapper
         public static final String PYTHON_WRAPPER_VECTOR_STORE =
                 "org.apache.flink.agents.api.vectorstores.python.PythonVectorStore";

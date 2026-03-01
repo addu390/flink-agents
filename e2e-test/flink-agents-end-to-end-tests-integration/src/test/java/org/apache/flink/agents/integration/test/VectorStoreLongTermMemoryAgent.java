@@ -46,6 +46,7 @@ import org.apache.flink.agents.integrations.chatmodels.ollama.OllamaChatModelCon
 import org.apache.flink.agents.integrations.chatmodels.ollama.OllamaChatModelSetup;
 import org.apache.flink.agents.integrations.embeddingmodels.ollama.OllamaEmbeddingModelConnection;
 import org.apache.flink.agents.integrations.embeddingmodels.ollama.OllamaEmbeddingModelSetup;
+import org.apache.flink.agents.integrations.vectorstores.chroma.ChromaVectorStore;
 import org.apache.flink.agents.integrations.vectorstores.elasticsearch.ElasticsearchVectorStore;
 import org.junit.jupiter.api.Assertions;
 
@@ -138,6 +139,14 @@ public class VectorStoreLongTermMemoryAgent extends Agent {
 
     @VectorStore
     public static ResourceDescriptor vectorStore() {
+        String provider = System.getProperty("VECTOR_STORE_PROVIDER", "ELASTICSEARCH");
+        if ("CHROMA".equals(provider)) {
+            return ResourceDescriptor.Builder.newBuilder(ChromaVectorStore.class.getName())
+                    .addInitialArgument("embedding_model", "embeddingModel")
+                    .addInitialArgument("host", "localhost")
+                    .addInitialArgument("port", 8000)
+                    .build();
+        }
         return ResourceDescriptor.Builder.newBuilder(ElasticsearchVectorStore.class.getName())
                 .addInitialArgument("embedding_model", "embeddingModel")
                 .addInitialArgument("host", "localhost:9200")

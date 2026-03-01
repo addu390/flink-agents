@@ -32,9 +32,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.Map;
 
 /**
- * Parameterized integration test for Vector Stores. Currently validates Elasticsearch backend.
+ * Parameterized integration test for Vector Stores. Validates Elasticsearch and ChromaDB backends.
  *
- * <p>Environment variables required to run against a real Elasticsearch cluster:
+ * <p>Environment variables required for <b>Elasticsearch</b>:
  *
  * <ul>
  *   <li>ES_HOST (e.g., http://localhost:9200)
@@ -43,23 +43,39 @@ import java.util.Map;
  *   <li>ES_DIMS (optional; defaults to 768)
  * </ul>
  *
- * If these are not provided, the test will be skipped.
+ * <p>Environment variables required for <b>ChromaDB</b>:
+ *
+ * <ul>
+ *   <li>CHROMA_HOST (e.g., localhost) — defaults to localhost
+ *   <li>CHROMA_PORT (e.g., 8000) — defaults to 8000
+ *   <li>CHROMA_COLLECTION (e.g., my_collection) — defaults to flink_agents_vs_test
+ * </ul>
+ *
+ * If the required environment variables are not provided, the test for that backend will be
+ * skipped.
  */
 public class VectorStoreIntegrationTest {
 
     @ParameterizedTest
-    @ValueSource(strings = {"ELASTICSEARCH"})
+    @ValueSource(strings = {"ELASTICSEARCH", "CHROMA"})
     public void testVectorStoreSemanticQuery(String backend) throws Exception {
-        Assumptions.assumeTrue("ELASTICSEARCH".equals(backend));
+        if ("ELASTICSEARCH".equals(backend)) {
+            String host = getEnvOrProperty("ES_HOST");
+            String index = getEnvOrProperty("ES_INDEX");
+            String vectorField = getEnvOrProperty("ES_VECTOR_FIELD");
 
-        String host = getEnvOrProperty("ES_HOST");
-        String index = getEnvOrProperty("ES_INDEX");
-        String vectorField = getEnvOrProperty("ES_VECTOR_FIELD");
+            Assumptions.assumeTrue(host != null && !host.isEmpty(), "ES_HOST is not set");
+            Assumptions.assumeTrue(index != null && !index.isEmpty(), "ES_INDEX is not set");
+            Assumptions.assumeTrue(
+                    vectorField != null && !vectorField.isEmpty(), "ES_VECTOR_FIELD is not set");
+        } else if ("CHROMA".equals(backend)) {
+            String host = getEnvOrProperty("CHROMA_HOST");
+            Assumptions.assumeTrue(host != null && !host.isEmpty(), "CHROMA_HOST is not set");
+        } else {
+            Assumptions.abort("Unknown backend: " + backend);
+        }
 
-        Assumptions.assumeTrue(host != null && !host.isEmpty(), "ES_HOST is not set");
-        Assumptions.assumeTrue(index != null && !index.isEmpty(), "ES_INDEX is not set");
-        Assumptions.assumeTrue(
-                vectorField != null && !vectorField.isEmpty(), "ES_VECTOR_FIELD is not set");
+        System.setProperty("VECTOR_STORE_PROVIDER", backend);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);

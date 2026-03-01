@@ -29,10 +29,13 @@ import org.apache.flink.agents.api.memory.compaction.CompactionConfig;
 import org.apache.flink.agents.api.resource.Resource;
 import org.apache.flink.agents.api.resource.ResourceDescriptor;
 import org.apache.flink.agents.api.resource.ResourceType;
+import org.apache.flink.agents.api.vectorstores.BaseVectorStore;
+import org.apache.flink.agents.api.vectorstores.CollectionManageableVectorStore;
 import org.apache.flink.agents.integrations.chatmodels.ollama.OllamaChatModelConnection;
 import org.apache.flink.agents.integrations.chatmodels.ollama.OllamaChatModelSetup;
 import org.apache.flink.agents.integrations.embeddingmodels.ollama.OllamaEmbeddingModelConnection;
 import org.apache.flink.agents.integrations.embeddingmodels.ollama.OllamaEmbeddingModelSetup;
+import org.apache.flink.agents.integrations.vectorstores.chroma.ChromaVectorStore;
 import org.apache.flink.agents.integrations.vectorstores.elasticsearch.ElasticsearchVectorStore;
 import org.apache.flink.agents.plan.AgentConfiguration;
 import org.apache.flink.agents.runtime.memory.VectorStoreLongTermMemory;
@@ -63,15 +66,18 @@ import java.util.stream.Collectors;
 /**
  * Test for {@link VectorStoreLongTermMemory}
  *
- * <p>We use {@link ElasticsearchVectorStore} as the backend of Long-Term Memory, so need setup
- * Elasticsearch server to run this test. Look <a
- * href="https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-elasticsearch-docker-basic">Start
- * a single-node cluster in Docker</a> for details.
+ * <p>We use {@link ElasticsearchVectorStore} or {@link ChromaVectorStore} as the backend of
+ * Long-Term Memory, so need to setup the corresponding server to run this test.
  *
- * <p>For {@link ElasticsearchVectorStore} doesn't support security check yet, when start the
- * container, should add "-e xpack.security.enabled=false" option.
+ * <p>For Elasticsearch, look <a
+ * href="https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-elasticsearch-docker-basic">Start
+ * a single-node cluster in Docker</a> for details. Since {@link ElasticsearchVectorStore} doesn't
+ * support security check yet, add "-e xpack.security.enabled=false" when starting the container.
+ *
+ * <p>For ChromaDB, run {@code docker run -d -p 8000:8000 chromadb/chroma:0.4.24} and set system
+ * property {@code VECTOR_STORE_PROVIDER=CHROMA}.
  */
-@Disabled("Should setup Elasticsearch server.")
+@Disabled("Should setup Elasticsearch or ChromaDB server.")
 public class VectorStoreLongTermMemoryTest {
     private static final Logger LOG = LoggerFactory.getLogger(VectorStoreLongTermMemoryTest.class);
 
@@ -111,6 +117,16 @@ public class VectorStoreLongTermMemoryTest {
                             .build(),
                     VectorStoreLongTermMemoryTest::getResource);
         } else {
+            String vsProvider = System.getProperty("VECTOR_STORE_PROVIDER", "ELASTICSEARCH");
+            if ("CHROMA".equals(vsProvider)) {
+                return new ChromaVectorStore(
+                        ResourceDescriptor.Builder.newBuilder(ChromaVectorStore.class.getName())
+                                .addInitialArgument("embedding_model", "embed-setup")
+                                .addInitialArgument("host", "localhost")
+                                .addInitialArgument("port", 8000)
+                                .build(),
+                        VectorStoreLongTermMemoryTest::getResource);
+            }
             return new ElasticsearchVectorStore(
                     ResourceDescriptor.Builder.newBuilder(ElasticsearchVectorStore.class.getName())
                             .addInitialArgument("embedding_model", "embed-setup")
@@ -257,15 +273,7 @@ public class VectorStoreLongTermMemoryTest {
     @Tag("skipBeforeEach")
     @Tag("skipAfterEach")
     public void testUsingLtmInAction() throws Exception {
-        ElasticsearchVectorStore es =
-                new ElasticsearchVectorStore(
-                        ResourceDescriptor.Builder.newBuilder(
-                                        ElasticsearchVectorStore.class.getName())
-                                .addInitialArgument("embedding_model", "embed-setup")
-                                .addInitialArgument("host", "localhost:9200")
-                                .addInitialArgument("dims", 768)
-                                .build(),
-                        VectorStoreLongTermMemoryTest::getResource);
+        Resource vs = getResource("vector-store", ResourceType.VECTOR_STORE);
         try {
             // Set up the Flink streaming environment and the Agents execution environment.
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -319,12 +327,17 @@ public class VectorStoreLongTermMemoryTest {
             agentsEnv.execute();
 
             // check async compaction
-            LOG.debug(es.get(null, "ltm_test_job-2-test-ltm", Collections.emptyMap()).toString());
-            Assertions.assertEquals(1, es.size("ltm_test_job-2-test-ltm"));
+            BaseVectorStore store = (BaseVectorStore) vs;
+            LOG.debug(
+                    store.get(null, "ltm_test_job-2-test-ltm", Collections.emptyMap()).toString());
+            Assertions.assertEquals(1, store.size("ltm_test_job-2-test-ltm"));
         } finally {
-            es.deleteCollection("ltm_test_job-1-test-ltm");
-            es.deleteCollection("ltm_test_job-2-test-ltm");
-            es.deleteCollection("ltm_test_job-3-test-ltm");
+            if (vs instanceof CollectionManageableVectorStore) {
+                CollectionManageableVectorStore cms = (CollectionManageableVectorStore) vs;
+                cms.deleteCollection("ltm_test_job-1-test-ltm");
+                cms.deleteCollection("ltm_test_job-2-test-ltm");
+                cms.deleteCollection("ltm_test_job-3-test-ltm");
+            }
         }
     }
 }

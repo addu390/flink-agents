@@ -87,6 +87,25 @@ public class VectorStoreIntegrationAgent extends Agent {
             }
 
             return builder.build();
+        } else if (provider.equals("CHROMA")) {
+            String host = System.getenv("CHROMA_HOST");
+            if (host == null || host.isEmpty()) {
+                host = "localhost";
+            }
+            String portStr = System.getenv("CHROMA_PORT");
+            int port = (portStr != null && !portStr.isEmpty()) ? Integer.parseInt(portStr) : 8000;
+            String collection = System.getenv("CHROMA_COLLECTION");
+            if (collection == null || collection.isEmpty()) {
+                collection = "flink_agents_vs_test";
+            }
+
+            return ResourceDescriptor.Builder.newBuilder(
+                            ResourceName.VectorStore.CHROMA_VECTOR_STORE)
+                    .addInitialArgument("embedding_model", "embeddingModel")
+                    .addInitialArgument("host", host)
+                    .addInitialArgument("port", port)
+                    .addInitialArgument("collection", collection)
+                    .build();
         } else {
             throw new RuntimeException(String.format("Unknown vector store provider %s", provider));
         }
