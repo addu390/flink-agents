@@ -19,6 +19,7 @@ package org.apache.flink.agents.runtime.python.utils;
 
 import org.apache.flink.agents.api.chat.messages.ChatMessage;
 import org.apache.flink.agents.api.chat.messages.MessageRole;
+import org.apache.flink.agents.api.memory.compaction.CompactionConfig;
 import org.apache.flink.agents.api.resource.Resource;
 import org.apache.flink.agents.api.resource.ResourceType;
 import org.apache.flink.agents.api.vectorstores.Document;
@@ -27,6 +28,8 @@ import org.apache.flink.agents.api.vectorstores.VectorStoreQueryMode;
 import pemja.core.PythonInterpreter;
 import pemja.core.object.PyObject;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.function.BiFunction;
 
@@ -100,5 +103,50 @@ public class JavaResourceAdapter {
                 pythonVectorStoreQuery.getAttr("limit", Integer.class),
                 (String) pythonVectorStoreQuery.getAttr("collection_name"),
                 (Map<String, Object>) pythonVectorStoreQuery.getAttr("extra_args", Map.class));
+    }
+
+    /**
+     * Resolves a Python type name to a Java Class for LTM item types. Called from Python to create
+     * Java Class<?> objects that can be passed to VectorStoreLongTermMemory.getOrCreateMemorySet().
+     *
+     * @param typeName "str" or "ChatMessage"
+     * @return the corresponding Java Class
+     */
+    public Class<?> resolveMemoryItemType(String typeName) {
+        if ("str".equals(typeName)) {
+            return String.class;
+        }
+        if ("ChatMessage".equals(typeName)) {
+            return ChatMessage.class;
+        }
+        throw new IllegalArgumentException("Unsupported LTM item type: " + typeName);
+    }
+
+    /**
+     * Creates a Java CompactionConfig from primitive arguments. Called from Python since Pemja
+     * cannot directly construct Java objects.
+     *
+     * @param model the chat model resource name for summarization
+     * @param prompt optional prompt resource name (may be null)
+     * @param limit max number of summarization topics
+     * @return the Java CompactionConfig
+     */
+    public CompactionConfig createCompactionConfig(String model, Object prompt, int limit) {
+        return new CompactionConfig(model, prompt, limit);
+    }
+
+    /**
+     * Formats a Java LocalDateTime to an ISO-8601 string. Called from Python since Pemja cannot
+     * directly call toString() on Java temporal objects.
+     *
+     * @param dateTime a LocalDateTime instance
+     * @return ISO-8601 formatted string
+     */
+    public String formatDateTime(Object dateTime) {
+        if (dateTime instanceof LocalDateTime) {
+            return ((LocalDateTime) dateTime).format(DateTimeFormatter.ISO_DATE_TIME);
+        }
+        throw new IllegalArgumentException(
+                "Expected LocalDateTime but got: " + dateTime.getClass().getName());
     }
 }

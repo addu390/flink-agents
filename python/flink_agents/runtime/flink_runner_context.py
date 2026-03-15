@@ -41,11 +41,8 @@ from flink_agents.runtime.flink_metric_group import FlinkMetricGroup
 from flink_agents.runtime.memory.internal_base_long_term_memory import (
     InternalBaseLongTermMemory,
 )
-from flink_agents.runtime.memory.vector_store_long_term_memory import (
-    VectorStoreLongTermMemory,
-)
 from flink_agents.runtime.python_java_utils import _build_event_log_string
-
+from flink_agents.runtime.java.java_long_term_memory import JavaLongTermMemory
 logger = logging.getLogger(__name__)
 
 
@@ -509,7 +506,6 @@ class FlinkRunnerContext(RunnerContext):
             finally:
                 self.__agent_plan = None
 
-
 def create_flink_runner_context(
     j_runner_context: Any,
     agent_plan_json: str,
@@ -523,21 +519,17 @@ def create_flink_runner_context(
     )
 
     backend = ctx.config.get(LongTermMemoryOptions.BACKEND)
-    # use external vector store based long term memory
+    # Use Java-side LTM implementation via delegation
     if backend == LongTermMemoryBackend.EXTERNAL_VECTOR_STORE:
-        vector_store_name = ctx.config.get(
-            LongTermMemoryOptions.EXTERNAL_VECTOR_STORE_NAME
-        )
+        j_ltm = j_runner_context.getLongTermMemory()
         ctx.set_long_term_memory(
-            VectorStoreLongTermMemory(
-                ctx=ctx,
-                vector_store=vector_store_name,
-                job_id=job_identifier,
+            JavaLongTermMemory(
+                j_ltm=j_ltm,
+                j_resource_adapter=j_resource_adapter,
             )
         )
 
     return ctx
-
 
 def flink_runner_context_switch_action_context(
     ctx: FlinkRunnerContext,
