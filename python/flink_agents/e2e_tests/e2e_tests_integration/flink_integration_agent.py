@@ -18,7 +18,7 @@
 import copy
 import random
 import time
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel
 from pyflink.common import Row
@@ -51,7 +51,17 @@ class ItemData(BaseModel):
 
 
 class MyEvent(Event):  # noqa D101
-    value: Any
+    EVENT_TYPE: ClassVar[str] = "_my_event"
+
+    def __init__(self, value: Any) -> None:
+        super().__init__(
+            type=MyEvent.EVENT_TYPE,
+            attributes={"value": value},
+        )
+
+    @property
+    def value(self) -> Any:
+        return self.attributes["value"]
 
 
 class MyKeySelector(KeySelector):
@@ -87,7 +97,7 @@ class DataStreamAgent(Agent):
         """
         return input + " call my tool"
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     async def first_action(event: Event, ctx: RunnerContext):  # noqa D102
         def log_to_stdout(input: Any, total: int) -> bool:
@@ -112,7 +122,7 @@ class DataStreamAgent(Agent):
         data_ref = stm.set(f"processed_items.item_{content.id}", content)
         ctx.send_event(MyEvent(value=data_ref))
 
-    @action(MyEvent)
+    @action("_my_event")
     @staticmethod
     def second_action(event: Event, ctx: RunnerContext):  # noqa D102
         input_data = event.value
@@ -134,7 +144,7 @@ class TableAgent(Agent):
     to __main__.
     """
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def first_action(event: Event, ctx: RunnerContext):  # noqa D102
         input = event.input
@@ -142,7 +152,7 @@ class TableAgent(Agent):
         content["review"] += " first action"
         ctx.send_event(MyEvent(value=content))
 
-    @action(MyEvent)
+    @action("_my_event")
     @staticmethod
     def second_action(event: Event, ctx: RunnerContext):  # noqa D102
         input = event.value
@@ -159,7 +169,7 @@ class DataStreamToTableAgent(Agent):
     to __main__.
     """
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def first_action(event: Event, ctx: RunnerContext):  # noqa D102
         input = event.input
@@ -167,7 +177,7 @@ class DataStreamToTableAgent(Agent):
         content.review += " first action"
         ctx.send_event(MyEvent(value=content))
 
-    @action(MyEvent)
+    @action("_my_event")
     @staticmethod
     def second_action(event: Event, ctx: RunnerContext):  # noqa D102
         input = event.value

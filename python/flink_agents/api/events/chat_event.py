@@ -15,7 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
-from typing import List
+from typing import ClassVar, List
+
+try:
+    from typing import override
+except ImportError:
+    from typing_extensions import override
 from uuid import UUID
 
 from flink_agents.api.agents.types import OutputSchema
@@ -36,9 +41,45 @@ class ChatRequestEvent(Event):
         The expected output schema of the chat model final response. Optional.
     """
 
-    model: str
-    messages: List[ChatMessage]
-    output_schema: OutputSchema | None = None
+    EVENT_TYPE: ClassVar[str] = "_chat_request_event"
+
+    def __init__(
+        self,
+        model: str,
+        messages: List[ChatMessage],
+        output_schema: OutputSchema | None = None,
+    ) -> None:
+        super().__init__(
+            type=ChatRequestEvent.EVENT_TYPE,
+            attributes={
+                "model": model,
+                "messages": messages,
+                "output_schema": output_schema,
+            },
+        )
+
+    @classmethod
+    @override
+    def from_event(cls, event: Event) -> "ChatRequestEvent":
+        assert "model" in event.attributes
+        assert "messages" in event.attributes
+        return ChatRequestEvent(
+            model=event.attributes["model"],
+            messages=event.attributes["messages"],
+            output_schema=event.attributes.get("output_schema"),
+        )
+
+    @property
+    def model(self) -> str:
+        return self.attributes["model"]
+
+    @property
+    def messages(self) -> List[ChatMessage]:
+        return self.attributes["messages"]
+
+    @property
+    def output_schema(self) -> OutputSchema | None:
+        return self.attributes.get("output_schema")
 
 
 class ChatResponseEvent(Event):
@@ -56,7 +97,49 @@ class ChatResponseEvent(Event):
         The total time spent waiting during retries in seconds.
     """
 
-    request_id: UUID
-    response: ChatMessage
-    retry_count: int = 0
-    total_retry_wait_sec: int = 0
+    EVENT_TYPE: ClassVar[str] = "_chat_response_event"
+
+    def __init__(
+        self,
+        request_id: UUID,
+        response: ChatMessage,
+        retry_count: int = 0,
+        total_retry_wait_sec: int = 0,
+    ) -> None:
+        super().__init__(
+            type=ChatResponseEvent.EVENT_TYPE,
+            attributes={
+                "request_id": request_id,
+                "response": response,
+                "retry_count": retry_count,
+                "total_retry_wait_sec": total_retry_wait_sec,
+            },
+        )
+
+    @classmethod
+    @override
+    def from_event(cls, event: Event) -> "ChatResponseEvent":
+        assert "request_id" in event.attributes
+        assert "response" in event.attributes
+        return ChatResponseEvent(
+            request_id=event.attributes["request_id"],
+            response=event.attributes["response"],
+            retry_count=event.attributes.get("retry_count", 0),
+            total_retry_wait_sec=event.attributes.get("total_retry_wait_sec", 0),
+        )
+
+    @property
+    def request_id(self) -> UUID:
+        return self.attributes["request_id"]
+
+    @property
+    def response(self) -> ChatMessage:
+        return self.attributes["response"]
+
+    @property
+    def retry_count(self) -> int:
+        return self.attributes.get("retry_count", 0)
+
+    @property
+    def total_retry_wait_sec(self) -> int:
+        return self.attributes.get("total_retry_wait_sec", 0)

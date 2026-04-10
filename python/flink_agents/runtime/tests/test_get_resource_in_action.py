@@ -69,7 +69,7 @@ class MyAgent(Agent):  # noqa: D101
         """
         return input + " mock tools just for testing."
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def mock_action(event: InputEvent, ctx: RunnerContext) -> None:  # noqa: D102
         input = event.input

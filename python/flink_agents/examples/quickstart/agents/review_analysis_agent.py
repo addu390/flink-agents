@@ -89,7 +89,7 @@ class ReviewAnalysisAgent(Agent):
             extract_reasoning=True,
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         """Process input event and send chat request for review analysis."""
@@ -103,7 +103,7 @@ class ReviewAnalysisAgent(Agent):
         msg = ChatMessage(role=MessageRole.USER, extra_args={"input": content})
         ctx.send_event(ChatRequestEvent(model="review_analysis_model", messages=[msg]))
 
-    @action(ChatResponseEvent)
+    @action("_chat_response_event")
     @staticmethod
     def process_chat_response(event: ChatResponseEvent, ctx: RunnerContext) -> None:
         """Process chat response event and send output event."""

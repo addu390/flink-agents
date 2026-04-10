@@ -53,7 +53,7 @@ class InputKeySelector(KeySelector):
 class PythonEventLoggingAgent(Agent):
     """Agent for testing PythonEvent logging."""
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         """Process input event and send a PythonEvent."""

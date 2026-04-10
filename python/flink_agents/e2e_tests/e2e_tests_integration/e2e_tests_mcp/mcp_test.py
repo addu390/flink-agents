@@ -104,7 +104,7 @@ class MyMCPAgent(Agent):
             descriptor_kwargs["prompt"] = "ask_sum"  # MCP prompt registered from my_mcp_server
         return ResourceDescriptor(**descriptor_kwargs)
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         """Process input and send chat request.
@@ -131,7 +131,7 @@ class MyMCPAgent(Agent):
 
         ctx.send_event(ChatRequestEvent(model="math_chat_model", messages=[msg]))
 
-    @action(ChatResponseEvent)
+    @action("_chat_response_event")
     @staticmethod
     def process_chat_response(event: ChatResponseEvent, ctx: RunnerContext) -> None:
         """Process chat response and output result."""

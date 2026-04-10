@@ -16,6 +16,7 @@
 # limitations under the License.
 #################################################################################
 import time
+from typing import ClassVar
 
 import pytest
 
@@ -27,7 +28,7 @@ from flink_agents.api.runner_context import RunnerContext
 
 
 class Agent1(Agent):  # noqa: D101
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def increment(event: Event, ctx: RunnerContext):  # noqa D102
         input = event.input
@@ -36,7 +37,7 @@ class Agent1(Agent):  # noqa: D101
 
 
 class Agent1WithAsync(Agent):  # noqa: D101
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     async def increment(event: Event, ctx: RunnerContext):  # noqa D102
         def my_func(value: int) -> int:
@@ -49,7 +50,7 @@ class Agent1WithAsync(Agent):  # noqa: D101
 
 
 class Agent2(Agent):  # noqa: D101
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def decrease(event: Event, ctx: RunnerContext):  # noqa D102
         input = event.input
@@ -124,3 +125,91 @@ def test_local_execution_environment_call_from_list_twice() -> None:  # noqa: D1
     env.from_list(input_list)
     with pytest.raises(RuntimeError):
         env.from_list(input_list)
+
+
+# ── Unified event E2E tests ──────────────────────────────────────────────
+
+
+class UnifiedEventAgent(Agent):  # noqa: D101
+    @action("_input_event")
+    @staticmethod
+    def on_input(event: Event, ctx: RunnerContext) -> None:  # noqa: D102
+        ctx.send_event(
+            Event(type="Intermediate", attributes={"msg": event.input})
+        )
+
+    @action("Intermediate")
+    @staticmethod
+    def on_intermediate(event: Event, ctx: RunnerContext) -> None:  # noqa: D102
+        ctx.send_event(
+            OutputEvent(output=f"processed:{event.get_attr('msg')}")
+        )
+
+
+def test_unified_event_workflow() -> None:
+    """End-to-end: InputEvent → unified 'Intermediate' → OutputEvent."""
+    env = AgentsExecutionEnvironment.get_execution_environment()
+
+    input_list = []
+    agent = UnifiedEventAgent()
+
+    output_list = env.from_list(input_list).apply(agent).to_list()
+
+    input_list.append({"key": "alice", "value": "hello"})
+    env.execute()
+
+    assert output_list == [{"alice": "processed:hello"}]
+
+
+class Step1Event(Event):
+    """Custom event with a type string."""
+
+    EVENT_TYPE: ClassVar[str] = "_step1_event"
+
+    def __init__(self, data: str) -> None:
+        super().__init__(
+            type=Step1Event.EVENT_TYPE,
+            attributes={"data": data},
+        )
+
+    @property
+    def data(self) -> str:
+        return self.attributes["data"]
+
+
+class MixedEventAgent(Agent):
+    """Agent mixing subclassed and string-based event routing."""
+
+    @action("_input_event")
+    @staticmethod
+    def start(event: Event, ctx: RunnerContext) -> None:  # noqa: D102
+        ctx.send_event(Step1Event(data=str(event.input)))
+
+    @action(Step1Event.EVENT_TYPE)
+    @staticmethod
+    def on_step1(event: Event, ctx: RunnerContext) -> None:  # noqa: D102
+        ctx.send_event(
+            Event(type="Step2", attributes={"value": event.get_attr("data")})
+        )
+
+    @action("Step2")
+    @staticmethod
+    def on_step2(event: Event, ctx: RunnerContext) -> None:  # noqa: D102
+        ctx.send_event(
+            OutputEvent(output=f"done:{event.get_attr('value')}")
+        )
+
+
+def test_mixed_event_workflow() -> None:
+    """E2E: InputEvent → class Step1Event → unified 'Step2' → OutputEvent."""
+    env = AgentsExecutionEnvironment.get_execution_environment()
+
+    input_list = []
+    agent = MixedEventAgent()
+
+    output_list = env.from_list(input_list).apply(agent).to_list()
+
+    input_list.append({"key": "bob", "value": 42})
+    env.execute()
+
+    assert output_list == [{"bob": "done:42"}]

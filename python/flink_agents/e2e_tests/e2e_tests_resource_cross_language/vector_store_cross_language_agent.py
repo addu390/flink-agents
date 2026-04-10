@@ -96,7 +96,7 @@ class VectorStoreCrossLanguageAgent(Agent):
             dims=768,
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         """User defined action for processing input.
@@ -177,7 +177,7 @@ class VectorStoreCrossLanguageAgent(Agent):
 
         ctx.send_event(ContextRetrievalRequestEvent(query=input_text, vector_store="vector_store"))
 
-    @action(ContextRetrievalResponseEvent)
+    @action("_context_retrieval_response_event")
     @staticmethod
     def contextRetrievalResponseEvent(event: ContextRetrievalResponseEvent, ctx: RunnerContext) -> None:
         """User defined action for processing context retrieval response.

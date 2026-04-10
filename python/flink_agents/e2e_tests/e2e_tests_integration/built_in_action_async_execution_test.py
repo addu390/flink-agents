@@ -82,7 +82,7 @@ class AsyncTestAgent(Agent):
         time.sleep(5)  # Simulate slow tool execution
         return a + b
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:  # noqa: D102
         input = event.input
@@ -97,7 +97,7 @@ class AsyncTestAgent(Agent):
             )
         )
 
-    @action(ChatResponseEvent)
+    @action("_chat_response_event")
     @staticmethod
     def process_chat_response(event: ChatResponseEvent, ctx: RunnerContext) -> None:  # noqa: D102
         input = event.response

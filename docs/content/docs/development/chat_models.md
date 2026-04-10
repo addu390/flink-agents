@@ -80,7 +80,7 @@ class MyAgent(Agent):
             temperature=0.7
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         # Create a chat request with user message
@@ -92,7 +92,7 @@ class MyAgent(Agent):
             ChatRequestEvent(model="ollama_chat_model", messages=[user_message])
         )
 
-    @action(ChatResponseEvent)
+    @action("_chat_response_event")
     @staticmethod
     def process_response(event: ChatResponseEvent, ctx: RunnerContext) -> None:
         response_content = event.response.content
@@ -939,7 +939,7 @@ class MyAgent(Agent):
             extract_reasoning=True,
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         # Create a chat request with user message
@@ -951,7 +951,7 @@ class MyAgent(Agent):
             ChatRequestEvent(model="java_chat_model", messages=[user_message])
         )
 
-    @action(ChatResponseEvent)
+    @action("_chat_response_event")
     @staticmethod
     def process_response(event: ChatResponseEvent, ctx: RunnerContext) -> None:
         response_content = event.response.content

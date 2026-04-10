@@ -323,7 +323,7 @@ class MyAgent(Agent):
             collection="my_chroma_store"
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def search_documents(event: InputEvent, ctx: RunnerContext) -> None:
         # Get the vector store from the runtime context
@@ -662,7 +662,7 @@ class MyAgent(Agent):
             dims=768
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         # Use Java vector store from Python

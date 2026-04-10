@@ -381,17 +381,17 @@ async def process_chat_request_or_tool_response(
     """
     # To avoid https://github.com/alibaba/pemja/issues/88, we log a message here.
     logging.debug("Processing chat request asynchronously.")
-    if isinstance(event, ChatRequestEvent):
-        await _process_chat_request(event, ctx)
-    elif isinstance(event, ToolResponseEvent):
-        await _process_tool_response(event, ctx)
+    if event.type == ChatRequestEvent.EVENT_TYPE:
+        await _process_chat_request(ChatRequestEvent.from_event(event), ctx)
+    elif event.type == ToolResponseEvent.EVENT_TYPE:
+        await _process_tool_response(ToolResponseEvent.from_event(event), ctx)
 
 
 CHAT_MODEL_ACTION = Action(
     name="chat_model_action",
     exec=PythonFunction.from_callable(process_chat_request_or_tool_response),
     listen_event_types=[
-        f"{ChatRequestEvent.__module__}.{ChatRequestEvent.__name__}",
-        f"{ToolResponseEvent.__module__}.{ToolResponseEvent.__name__}",
+        ChatRequestEvent.EVENT_TYPE,
+        ToolResponseEvent.EVENT_TYPE,
     ],
 )

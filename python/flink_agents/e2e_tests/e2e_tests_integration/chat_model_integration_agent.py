@@ -161,7 +161,7 @@ class ChatModelTestAgent(Agent):
         """
         return a + b
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         """User defined action for processing input.
@@ -181,7 +181,7 @@ class ChatModelTestAgent(Agent):
             )
         )
 
-    @action(ChatResponseEvent)
+    @action("_chat_response_event")
     @staticmethod
     def process_chat_response(event: ChatResponseEvent, ctx: RunnerContext) -> None:
         """User defined action for processing chat model response."""

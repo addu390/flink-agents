@@ -48,7 +48,8 @@ import java.util.Map;
  * {
  *   "timestamp": "2024-01-15T10:30:00Z",
  *   "event": {
- *     "eventType": "org.apache.flink.agents.api.InputEvent"
+ *     "eventType": "org.apache.flink.agents.api.InputEvent",
+ *     "eventClass": "org.apache.flink.agents.api.InputEvent",
  *     // Event-specific fields serialized normally
  *   }
  * }
@@ -86,7 +87,8 @@ public class EventLogRecordJsonSerializer extends JsonSerializer<EventLogRecord>
         JsonNode eventNode = mapper.valueToTree(event);
         if (eventNode.isObject()) {
             ObjectNode objectNode = (ObjectNode) eventNode;
-            objectNode.put("eventType", event.getClass().getName());
+            objectNode.put("eventType", event.getType());
+            objectNode.put("eventClass", event.getClass().getName());
             objectNode.remove("sourceTimestamp");
         }
         return eventNode;
@@ -119,6 +121,7 @@ public class EventLogRecordJsonSerializer extends JsonSerializer<EventLogRecord>
     private ObjectNode reorderEventFields(ObjectNode original, Event event, ObjectMapper mapper) {
         ObjectNode ordered = mapper.createObjectNode();
 
+        // eventType — routing key (user-defined string or class name)
         JsonNode eventTypeNode = original.get("eventType");
         if (eventTypeNode != null) {
             ordered.set("eventType", eventTypeNode);
@@ -128,7 +131,15 @@ public class EventLogRecordJsonSerializer extends JsonSerializer<EventLogRecord>
                 ordered.put("eventType", eventType);
             }
         } else {
-            ordered.put("eventType", event.getClass().getName());
+            ordered.put("eventType", event.getType());
+        }
+
+        // eventClass — actual Java class for deserialization
+        JsonNode eventClassNode = original.get("eventClass");
+        if (eventClassNode != null) {
+            ordered.set("eventClass", eventClassNode);
+        } else {
+            ordered.put("eventClass", event.getClass().getName());
         }
 
         JsonNode idNode = original.get("id");

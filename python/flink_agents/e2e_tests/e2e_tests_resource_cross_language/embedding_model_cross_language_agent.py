@@ -56,7 +56,7 @@ class EmbeddingModelCrossLanguageAgent(Agent):
             model=os.environ.get("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text:latest"),
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         """User defined action for processing input.
