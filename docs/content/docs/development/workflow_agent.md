@@ -85,7 +85,7 @@ class ReviewAnalysisAgent(Agent):
             extract_reasoning=True,
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         """Process input event and send chat request for review analysis."""
@@ -99,7 +99,7 @@ class ReviewAnalysisAgent(Agent):
         msg = ChatMessage(role=MessageRole.USER, extra_args={"input": content})
         ctx.send_event(ChatRequestEvent(model="review_analysis_model", messages=[msg]))
 
-    @action(ChatResponseEvent)
+    @action("_chat_response_event")
     @staticmethod
     def process_chat_response(event: ChatResponseEvent, ctx: RunnerContext) -> None:
         """Process chat response event and send output event."""
@@ -230,7 +230,7 @@ The decorated/annotated function signature should be `(Event, RunnerContext) -> 
 {{< tab "Python" >}}
 ```python
 class ReviewAnalysisAgent(Agent):
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         # the action logic
@@ -257,7 +257,7 @@ In the function, user can also send new events, to trigger other actions, or out
 
 {{< tab "Python" >}}
 ```python
-@action(InputEvent)
+@action("_input_event")
 @staticmethod
 def process_input(event: InputEvent, ctx: RunnerContext) -> None:
     # send ChatRequestEvent
@@ -305,7 +305,7 @@ on how to setup and configure the external action state store.
 {{< tab "Python" >}}
 Python actions can call `ctx.durable_execute(...)` to run a synchronous durable code block.
 ```python
-@action(InputEvent)
+@action("_input_event")
 @staticmethod
 def process_input(event: InputEvent, ctx: RunnerContext) -> None:
     def slow_external_call(data: str) -> str:
@@ -357,7 +357,7 @@ Async execution uses the same durable semantics but yields while waiting for a t
 {{< tab "Python" >}}
 Define an `async def` action and `await ctx.durable_execute_async(...)`.
 ```python
-@action(InputEvent)
+@action("_input_event")
 @staticmethod
 async def process_with_async(event: InputEvent, ctx: RunnerContext) -> None:
     def slow_external_call(data: str) -> str:

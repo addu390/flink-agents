@@ -15,8 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
-from typing import List
-
 import pytest
 
 from flink_agents.api.decorators import action
@@ -25,25 +23,25 @@ from flink_agents.api.runner_context import RunnerContext
 
 
 def test_action_decorator() -> None:  # noqa D103
-    @action(InputEvent)
+    @action("_input_event")
     def forward_action(event: Event, ctx: RunnerContext) -> None:
         input = event.input
         ctx.send_event(OutputEvent(output=input))
 
     assert hasattr(forward_action, "_listen_events")
     listen_events = forward_action._listen_events
-    assert listen_events == (InputEvent,)
+    assert listen_events == ("_input_event",)
 
 
 def test_action_decorator_listen_multi_events() -> None:  # noqa D103
-    @action(InputEvent, OutputEvent)
+    @action("_input_event", "_output_event")
     def forward_action(event: Event, ctx: RunnerContext) -> None:
         input = event.input
         ctx.send_event(OutputEvent(output=input))
 
     assert hasattr(forward_action, "_listen_events")
     listen_events = forward_action._listen_events
-    assert listen_events == (InputEvent, OutputEvent)
+    assert listen_events == ("_input_event", "_output_event")
 
 
 def test_action_decorator_listen_no_event() -> None:  # noqa D103
@@ -55,16 +53,13 @@ def test_action_decorator_listen_no_event() -> None:  # noqa D103
             ctx.send_event(OutputEvent(output=input))
 
 
-def test_action_decorator_listen_non_event_type() -> None:  # noqa D103
+def test_action_decorator_listen_non_string_type() -> None:  # noqa D103
     with pytest.raises(AssertionError):
 
-        @action(List)
+        @action(InputEvent)  # type: ignore[arg-type]
         def forward_action(event: Event, ctx: RunnerContext) -> None:
             input = event.input
             ctx.send_event(OutputEvent(output=input))
-
-
-# ── String identifier tests ──────────────────────────────────────────────
 
 
 def test_action_decorator_with_string_identifier() -> None:
@@ -78,18 +73,18 @@ def test_action_decorator_with_string_identifier() -> None:
     assert my_handler._listen_events == ("MyCustomEvent",)
 
 
-def test_action_decorator_mixed_class_and_string() -> None:
-    """Test that @action accepts a mix of event classes and strings."""
+def test_action_decorator_multiple_strings() -> None:
+    """Test that @action accepts multiple string identifiers."""
 
-    @action(InputEvent, "AnotherEvent")
+    @action("_input_event", "AnotherEvent")
     def mixed_handler(event: Event, ctx: RunnerContext) -> None:
         pass
 
-    assert mixed_handler._listen_events == (InputEvent, "AnotherEvent")
+    assert mixed_handler._listen_events == ("_input_event", "AnotherEvent")
 
 
 def test_action_decorator_rejects_invalid_types() -> None:
-    """Test that @action rejects non-Event, non-string arguments."""
+    """Test that @action rejects non-string arguments."""
     with pytest.raises(AssertionError):
 
         @action(42)  # type: ignore[arg-type]

@@ -16,6 +16,11 @@
 # limitations under the License.
 #################################################################################
 from typing import Any, Dict, List
+
+try:
+    from typing import override
+except ImportError:
+    from typing_extensions import override
 from uuid import UUID
 
 from flink_agents.api.events.event import Event
@@ -32,8 +37,34 @@ class ToolRequestEvent(Event):
         tool calls that should be executed in batch.
     """
 
-    model: str
-    tool_calls: List[Dict[str, Any]]
+    EVENT_TYPE = "_tool_request_event"
+
+    def __init__(self, model: str, tool_calls: List[Dict[str, Any]]) -> None:
+        super().__init__(
+            type=ToolRequestEvent.EVENT_TYPE,
+            attributes={
+                "model": model,
+                "tool_calls": tool_calls,
+            },
+        )
+
+    @classmethod
+    @override
+    def from_event(cls, event: Event) -> "ToolRequestEvent":
+        assert "model" in event.attributes
+        assert "tool_calls" in event.attributes
+        return ToolRequestEvent(
+            model=event.attributes["model"],
+            tool_calls=event.attributes["tool_calls"],
+        )
+
+    @property
+    def model(self) -> str:
+        return self.attributes["model"]
+
+    @property
+    def tool_calls(self) -> List[Dict[str, Any]]:
+        return self.attributes["tool_calls"]
 
 
 class ToolResponseEvent(Event):
@@ -50,6 +81,43 @@ class ToolResponseEvent(Event):
         (e.g., Anthropic tool_use_id).
     """
 
-    request_id: UUID
-    responses: Dict[UUID, Any]
-    external_ids: Dict[UUID, str | None]
+    EVENT_TYPE = "_tool_response_event"
+
+    def __init__(
+        self,
+        request_id: UUID,
+        responses: Dict[UUID, Any],
+        external_ids: Dict[UUID, str | None],
+    ) -> None:
+        super().__init__(
+            type=ToolResponseEvent.EVENT_TYPE,
+            attributes={
+                "request_id": request_id,
+                "responses": responses,
+                "external_ids": external_ids,
+            },
+        )
+
+    @classmethod
+    @override
+    def from_event(cls, event: Event) -> "ToolResponseEvent":
+        assert "request_id" in event.attributes
+        assert "responses" in event.attributes
+        assert "external_ids" in event.attributes
+        return ToolResponseEvent(
+            request_id=event.attributes["request_id"],
+            responses=event.attributes["responses"],
+            external_ids=event.attributes["external_ids"],
+        )
+
+    @property
+    def request_id(self) -> UUID:
+        return self.attributes["request_id"]
+
+    @property
+    def responses(self) -> Dict[UUID, Any]:
+        return self.attributes["responses"]
+
+    @property
+    def external_ids(self) -> Dict[UUID, str | None]:
+        return self.attributes["external_ids"]

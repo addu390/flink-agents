@@ -103,7 +103,7 @@ Please provide a helpful answer based on the context provided."""
             model=OLLAMA_CHAT_MODEL
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def process_input(event: InputEvent, ctx: RunnerContext) -> None:
         """Process user input and retrieve relevant context."""
@@ -116,7 +116,7 @@ Please provide a helpful answer based on the context provided."""
             )
         )
 
-    @action(ContextRetrievalResponseEvent)
+    @action("_context_retrieval_response_event")
     @staticmethod
     def process_retrieved_context(
             event: ContextRetrievalResponseEvent, ctx: RunnerContext
@@ -145,7 +145,7 @@ Please provide a helpful answer based on the context provided."""
             )
         )
 
-    @action(ChatResponseEvent)
+    @action("_chat_response_event")
     @staticmethod
     def process_chat_response(event: ChatResponseEvent, ctx: RunnerContext) -> None:
         """Process chat model response and generate output."""

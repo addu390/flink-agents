@@ -49,7 +49,7 @@ from flink_agents.runtime.resource_cache import ResourceCache
 
 
 class AgentForTest(Agent):  # noqa D101
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def increment(event: Event, ctx: RunnerContext) -> None:  # noqa D102
         value = event.input
@@ -60,8 +60,7 @@ class AgentForTest(Agent):  # noqa D101
 def test_from_agent():  # noqa D102
     agent = AgentForTest()
     agent_plan = AgentPlan.from_agent(agent, AgentConfiguration())
-    event_type = f"{InputEvent.__module__}.{InputEvent.__name__}"
-    actions = agent_plan.get_actions(event_type)
+    actions = agent_plan.get_actions(InputEvent.EVENT_TYPE)
     assert len(actions) == 1
     action = actions[0]
     assert action.name == "increment"
@@ -69,11 +68,11 @@ def test_from_agent():  # noqa D102
     assert isinstance(func, PythonFunction)
     assert func.module == "flink_agents.plan.tests.test_agent_plan"
     assert func.qualname == "AgentForTest.increment"
-    assert action.listen_event_types == [event_type]
+    assert action.listen_event_types == [InputEvent.EVENT_TYPE]
 
 
 class InvalidAgent(Agent):  # noqa D101
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def invalid_signature_action(event: Event) -> None:  # noqa D102
         pass
@@ -87,6 +86,11 @@ def test_to_agent_invalid_signature() -> None:  # noqa D103
 
 class MyEvent(Event):
     """Event for testing purposes."""
+
+    EVENT_TYPE = "_my_event"
+
+    def __init__(self) -> None:
+        super().__init__(type=MyEvent.EVENT_TYPE)
 
 
 class MockChatModelImpl(BaseChatModelSetup):  # noqa: D101
@@ -220,14 +224,14 @@ class MyAgent(Agent):  # noqa: D101
             collection_name="test_collection",
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
-    def first_action(event: InputEvent, ctx: RunnerContext) -> None:  # noqa: D102
+    def first_action(event: Event, ctx: RunnerContext) -> None:  # noqa: D102
         pass
 
-    @action(InputEvent, MyEvent)
+    @action("_input_event", "_my_event")
     @staticmethod
-    def second_action(event: InputEvent, ctx: RunnerContext) -> None:  # noqa: D102
+    def second_action(event: Event, ctx: RunnerContext) -> None:  # noqa: D102
         pass
 
 
@@ -270,10 +274,10 @@ def test_get_resource() -> None:  # noqa: D103
 def test_add_action_and_resource_to_agent() -> None:  # noqa: D103
     my_agent = Agent()
     my_agent.add_action(
-        name="first_action", events=[InputEvent], func=MyAgent.first_action
+        name="first_action", events=["_input_event"], func=MyAgent.first_action
     )
     my_agent.add_action(
-        name="second_action", events=[InputEvent, MyEvent], func=MyAgent.second_action
+        name="second_action", events=["_input_event", "_my_event"], func=MyAgent.second_action
     )
     my_agent.add_resource(
         name="mock",

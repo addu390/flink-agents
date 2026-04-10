@@ -29,6 +29,11 @@ from flink_agents.api.runner_context import RunnerContext
 class MyEvent(Event):
     """Test event."""
 
+    EVENT_TYPE = "_my_event"
+
+    def __init__(self) -> None:
+        super().__init__(type=MyEvent.EVENT_TYPE)
+
 
 class MockChatModel(BaseChatModelSetup):
     """Mock ChatModel for testing integrating prompt and tool."""
@@ -45,14 +50,14 @@ class MockChatModel(BaseChatModelSetup):
 class PythonAgentPlanCompatibilityTestAgent(Agent):
     """Agent for generating python agent plan json."""
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
-    def first_action(event: InputEvent, ctx: RunnerContext) -> None:
+    def first_action(event: Event, ctx: RunnerContext) -> None:
         """Test implementation."""
 
-    @action(InputEvent, MyEvent)
+    @action("_input_event", "_my_event")
     @staticmethod
-    def second_action(event: InputEvent, ctx: RunnerContext) -> None:
+    def second_action(event: Event, ctx: RunnerContext) -> None:
         """Test implementation."""
 
     @chat_model_setup

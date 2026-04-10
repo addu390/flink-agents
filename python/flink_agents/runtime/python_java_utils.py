@@ -23,7 +23,7 @@ from typing import Any, Callable, Dict
 import cloudpickle
 
 from flink_agents.api.chat_message import ChatMessage, MessageRole
-from flink_agents.api.events.event import Event, InputEvent
+from flink_agents.api.events.event import Event, InputEvent, OutputEvent
 from flink_agents.api.resource import Resource, ResourceType, get_resource_class
 from flink_agents.api.tools.tool import Tool, ToolMetadata
 from flink_agents.api.tools.utils import (
@@ -46,34 +46,25 @@ from flink_agents.runtime.java.java_resource_wrapper import (
 
 
 def convert_to_python_object(bytesObject: bytes) -> Any:
-    """Used for deserializing Python objects."""
+    """Used for deserializing Python objects (e.g. durable execution results)."""
     return cloudpickle.loads(bytesObject)
 
 
-def _build_event_log_string(event: InputEvent | Event, event_type: str) -> str:
-    try:
-        payload = json.loads(event.model_dump_json())
-        payload["eventType"] = event_type
-        payload.setdefault("attributes", {})
-        return json.dumps(payload)
-    except Exception:
-        return str(event)
-
-
-def wrap_to_input_event(bytesObject: bytes) -> tuple[bytes, str]:
-    """Wrap data to python input event and serialize.
+def wrap_to_input_event(bytesObject: bytes) -> str:
+    """Wrap data to python input event and serialize as JSON.
 
     Returns:
-        A tuple of (serialized_event_bytes, event_json_str)
+        JSON string of the InputEvent
     """
     event = InputEvent(input=cloudpickle.loads(bytesObject))
-    event_type = f"{event.__class__.__module__}.{event.__class__.__qualname__}"
-    return (cloudpickle.dumps(event), _build_event_log_string(event, event_type))
+    return event.model_dump_json()
 
 
-def get_output_from_output_event(bytesObject: bytes) -> Any:
-    """Get output data from OutputEvent and serialize."""
-    return cloudpickle.dumps(convert_to_python_object(bytesObject).output)
+def get_output_from_output_event(event_json: str) -> Any:
+    """Get output data from OutputEvent JSON and serialize."""
+    event = Event.from_json(event_json)
+    output_event = OutputEvent.from_event(event) if not isinstance(event, OutputEvent) else event
+    return cloudpickle.dumps(output_event.output)
 
 def create_resource(resource_module: str, resource_clazz: str, func_kwargs: Dict[str, Any]) -> Resource:
     """Dynamically create a resource instance from module and class name.

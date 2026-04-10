@@ -27,7 +27,7 @@ from flink_agents.api.runner_context import RunnerContext
 
 
 class Agent1(Agent):  # noqa: D101
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def increment(event: Event, ctx: RunnerContext):  # noqa D102
         input = event.input
@@ -36,7 +36,7 @@ class Agent1(Agent):  # noqa: D101
 
 
 class Agent1WithAsync(Agent):  # noqa: D101
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     async def increment(event: Event, ctx: RunnerContext):  # noqa D102
         def my_func(value: int) -> int:
@@ -49,7 +49,7 @@ class Agent1WithAsync(Agent):  # noqa: D101
 
 
 class Agent2(Agent):  # noqa: D101
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def decrease(event: Event, ctx: RunnerContext):  # noqa D102
         input = event.input
@@ -130,11 +130,11 @@ def test_local_execution_environment_call_from_list_twice() -> None:  # noqa: D1
 
 
 class UnifiedEventAgent(Agent):  # noqa: D101
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def on_input(event: Event, ctx: RunnerContext) -> None:  # noqa: D102
         ctx.send_event(
-            identifier="Intermediate", msg=event.input
+            Event(type="Intermediate", attributes={"msg": event.input})
         )
 
     @action("Intermediate")
@@ -160,23 +160,36 @@ def test_unified_event_workflow() -> None:
     assert output_list == [{"alice": "processed:hello"}]
 
 
+class Step1Event(Event):
+    """Custom event with a type string."""
+
+    EVENT_TYPE = "_step1_event"
+
+    def __init__(self, data: str) -> None:
+        super().__init__(
+            type=Step1Event.EVENT_TYPE,
+            attributes={"data": data},
+        )
+
+    @property
+    def data(self) -> str:
+        return self.attributes["data"]
+
+
 class MixedEventAgent(Agent):
-    """Agent mixing class-based and string-based event routing."""
+    """Agent mixing subclassed and string-based event routing."""
 
-    class Step1Event(Event):
-        """Custom class-based event."""
-
-        data: str
-
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def start(event: Event, ctx: RunnerContext) -> None:  # noqa: D102
-        ctx.send_event(MixedEventAgent.Step1Event(data=str(event.input)))
+        ctx.send_event(Step1Event(data=str(event.input)))
 
-    @action(Step1Event)
+    @action(Step1Event.EVENT_TYPE)
     @staticmethod
     def on_step1(event: Event, ctx: RunnerContext) -> None:  # noqa: D102
-        ctx.send_event(identifier="Step2", value=event.data)
+        ctx.send_event(
+            Event(type="Step2", attributes={"value": event.get_attr("data")})
+        )
 
     @action("Step2")
     @staticmethod

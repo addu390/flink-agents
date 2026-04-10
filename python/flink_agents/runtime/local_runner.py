@@ -111,7 +111,7 @@ class LocalRunnerContext(RunnerContext):
         return self.__key
 
     @override
-    def _send_event(self, event: Event) -> None:
+    def send_event(self, event: Event) -> None:
         """Send an event to the context's event queue and log it.
 
         Parameters

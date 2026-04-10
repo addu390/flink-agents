@@ -23,6 +23,12 @@ from importlib import resources
 from pathlib import Path
 from typing import Any, List
 
+try:
+    from typing import override
+except ImportError:
+    from typing_extensions import override
+
+
 import pytest
 from pydantic import BaseModel
 from pyflink.common import Encoder, Types, WatermarkStrategy
@@ -106,7 +112,23 @@ class Record(BaseModel):  # noqa: D101
 
 
 class MyEvent(Event):  # noqa D101
-    value: Any
+    EVENT_TYPE = "_my_event"
+
+    def __init__(self, value: Any) -> None:
+        super().__init__(
+            type=MyEvent.EVENT_TYPE,
+            attributes={"value": value},
+        )
+
+    @classmethod
+    @override
+    def from_event(cls, event: Event) -> "MyEvent":
+        assert "value" in event.attributes
+        return MyEvent(value=event.attributes["value"])
+
+    @property
+    def value(self) -> Any:
+        return self.attributes["value"]
 
 
 class MyKeySelector(KeySelector):
@@ -166,7 +188,7 @@ class LongTermMemoryAgent(Agent):
             persist_directory=chromadb_path,
         )
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     async def add_items(event: Event, ctx: RunnerContext):  # noqa D102
         input_data = event.input
@@ -197,7 +219,7 @@ class LongTermMemoryAgent(Agent):
             )
         )
 
-    @action(MyEvent)
+    @action("_my_event")
     @staticmethod
     async def retrieve_items(event: Event, ctx: RunnerContext):  # noqa D102
         record: Record = event.value

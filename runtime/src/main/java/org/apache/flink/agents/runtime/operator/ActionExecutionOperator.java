@@ -818,7 +818,7 @@ public class ActionExecutionOperator<IN, OUT> extends AbstractStreamOperator<OUT
         super.notifyCheckpointComplete(checkpointId);
     }
 
-    private Event wrapToInputEvent(IN input) {
+    private Event wrapToInputEvent(IN input) throws Exception {
         if (inputIsJava) {
             return new InputEvent(input);
         } else {
@@ -833,13 +833,19 @@ public class ActionExecutionOperator<IN, OUT> extends AbstractStreamOperator<OUT
         checkState(EventUtil.isOutputEvent(event));
         if (event instanceof OutputEvent) {
             return (OUT) ((OutputEvent) event).getOutput();
-        } else if (event instanceof PythonEvent) {
-            Object outputFromOutputEvent =
-                    pythonActionExecutor.getOutputFromOutputEvent(((PythonEvent) event).getEvent());
-            return (OUT) outputFromOutputEvent;
         } else {
-            throw new IllegalStateException(
-                    "Unsupported event type: " + event.getClass().getName());
+            // Python output events arrive as unified Event with type "_output_event".
+            // Pass the JSON representation to Python for extraction.
+            try {
+                String eventJson =
+                        new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(event);
+                Object outputFromOutputEvent =
+                        pythonActionExecutor.getOutputFromOutputEvent(eventJson);
+                return (OUT) outputFromOutputEvent;
+            } catch (Exception e) {
+                throw new IllegalStateException(
+                        "Failed to extract output from event: " + event.getType(), e);
+            }
         }
     }
 

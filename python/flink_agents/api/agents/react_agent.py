@@ -28,7 +28,7 @@ from flink_agents.api.agents.types import OutputSchema
 from flink_agents.api.chat_message import ChatMessage, MessageRole
 from flink_agents.api.decorators import action
 from flink_agents.api.events.chat_event import ChatRequestEvent, ChatResponseEvent
-from flink_agents.api.events.event import InputEvent, OutputEvent
+from flink_agents.api.events.event import Event, InputEvent, OutputEvent
 from flink_agents.api.prompts.prompt import Prompt
 from flink_agents.api.resource import ResourceDescriptor, ResourceType
 from flink_agents.api.runner_context import RunnerContext
@@ -136,7 +136,7 @@ class ReActAgent(Agent):
 
         self.add_action(
             name="start_action",
-            events=[InputEvent],
+            events=[InputEvent.EVENT_TYPE],
             func=self.start_action,
             output_schema=OutputSchema(output_schema=output_schema),
         )
@@ -197,11 +197,11 @@ class ReActAgent(Agent):
             )
         )
 
-    @action(ChatResponseEvent)
+    @action("_chat_response_event")
     @staticmethod
-    def stop_action(event: ChatResponseEvent, ctx: RunnerContext) -> None:
+    def stop_action(event: Event, ctx: RunnerContext) -> None:
         """Stop action to output result."""
-        response = event.response
+        response = ChatResponseEvent.from_event(event).response
 
         if STRUCTURED_OUTPUT in response.extra_args:
             output = response.extra_args[STRUCTURED_OUTPUT]

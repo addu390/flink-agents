@@ -16,6 +16,11 @@
 # limitations under the License.
 #################################################################################
 from typing import List
+
+try:
+    from typing import override
+except ImportError:
+    from typing_extensions import override
 from uuid import UUID
 
 from flink_agents.api.events.event import Event
@@ -34,9 +39,43 @@ class ContextRetrievalRequestEvent(Event):
     max_results : int
         Maximum number of results to return (default: 3)
     """
-    query: str
-    vector_store: str
-    max_results: int = 3
+
+    EVENT_TYPE = "_context_retrieval_request_event"
+
+    def __init__(
+        self, query: str, vector_store: str, max_results: int = 3
+    ) -> None:
+        super().__init__(
+            type=ContextRetrievalRequestEvent.EVENT_TYPE,
+            attributes={
+                "query": query,
+                "vector_store": vector_store,
+                "max_results": max_results,
+            },
+        )
+
+    @classmethod
+    @override
+    def from_event(cls, event: Event) -> "ContextRetrievalRequestEvent":
+        assert "query" in event.attributes
+        assert "vector_store" in event.attributes
+        return ContextRetrievalRequestEvent(
+            query=event.attributes["query"],
+            vector_store=event.attributes["vector_store"],
+            max_results=event.attributes.get("max_results", 3),
+        )
+
+    @property
+    def query(self) -> str:
+        return self.attributes["query"]
+
+    @property
+    def vector_store(self) -> str:
+        return self.attributes["vector_store"]
+
+    @property
+    def max_results(self) -> int:
+        return self.attributes.get("max_results", 3)
 
 
 class ContextRetrievalResponseEvent(Event):
@@ -51,6 +90,41 @@ class ContextRetrievalResponseEvent(Event):
     documents : List[Document]
         List of retrieved documents from the vector store
     """
-    request_id: UUID
-    query: str
-    documents: List[Document]
+
+    EVENT_TYPE = "_context_retrieval_response_event"
+
+    def __init__(
+        self, request_id: UUID, query: str, documents: List[Document]
+    ) -> None:
+        super().__init__(
+            type=ContextRetrievalResponseEvent.EVENT_TYPE,
+            attributes={
+                "request_id": request_id,
+                "query": query,
+                "documents": documents,
+            },
+        )
+
+    @classmethod
+    @override
+    def from_event(cls, event: Event) -> "ContextRetrievalResponseEvent":
+        assert "request_id" in event.attributes
+        assert "query" in event.attributes
+        assert "documents" in event.attributes
+        return ContextRetrievalResponseEvent(
+            request_id=event.attributes["request_id"],
+            query=event.attributes["query"],
+            documents=event.attributes["documents"],
+        )
+
+    @property
+    def request_id(self) -> UUID:
+        return self.attributes["request_id"]
+
+    @property
+    def query(self) -> str:
+        return self.attributes["query"]
+
+    @property
+    def documents(self) -> List[Document]:
+        return self.attributes["documents"]

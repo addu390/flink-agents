@@ -201,12 +201,13 @@ class AgentPlan(BaseModel):
 def _resolve_event_type(evt: Any) -> str:
     """Convert a listen-event entry to a routing-key string.
 
-    If *evt* is a string, it is passed through as-is (unified-event identifier).
-    If *evt* is a class, its fully qualified name is returned.
+    Only string type identifiers are accepted.
     """
     if isinstance(evt, str):
         return evt
-    return f"{evt.__module__}.{evt.__qualname__}"
+    raise ValueError(
+        f"Event type must be a string identifier, got {evt!r}"
+    )
 
 
 def _get_actions(agent: Agent) -> List[Action]:

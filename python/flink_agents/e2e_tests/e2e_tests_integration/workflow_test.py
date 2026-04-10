@@ -39,7 +39,17 @@ class ProcessedData(BaseModel):  # noqa D101
 
 
 class MyEvent(Event):  # noqa D101
-    value: Any
+    EVENT_TYPE = "_my_event"
+
+    def __init__(self, value: Any) -> None:
+        super().__init__(
+            type=MyEvent.EVENT_TYPE,
+            attributes={"value": value},
+        )
+
+    @property
+    def value(self) -> Any:
+        return self.attributes["value"]
 
 
 # TODO: Replace this agent with more practical example.
@@ -50,7 +60,7 @@ class MyAgent(Agent):
     validation.
     """
 
-    @action(InputEvent)
+    @action("_input_event")
     @staticmethod
     def first_action(event: Event, ctx: RunnerContext):  # noqa D102
         key = ctx.key
@@ -71,7 +81,7 @@ class MyAgent(Agent):
         key_with_count = f"(visit {new_count} times)"
         ctx.send_event(OutputEvent(output={key_with_count: processed_content}))
 
-    @action(MyEvent)
+    @action("_my_event")
     @staticmethod
     def second_action(event: Event, ctx: RunnerContext):  # noqa D102
         content_ref: MemoryRef = event.value
