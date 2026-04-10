@@ -163,11 +163,12 @@ def test_unified_event_creation() -> None:
     assert event.get_type() == "MyEvent"
 
 
-def test_unified_event_get_type_falls_back_to_class_name() -> None:
-    """Test that get_type() falls back to FQN class name when type is None."""
+def test_unified_event_get_type_raises_when_no_type() -> None:
+    """Test that get_type() raises ValueError when type is None."""
     event = Event(a=1)
     assert event.type is None
-    assert event.get_type() == f"{Event.__module__}.{Event.__qualname__}"
+    with pytest.raises(ValueError, match="no type set"):
+        event.get_type()
 
 
 def test_unified_event_get_attr_set_attr() -> None:

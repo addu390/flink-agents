@@ -48,7 +48,8 @@ import java.util.Map;
  * {
  *   "timestamp": "2024-01-15T10:30:00Z",
  *   "event": {
- *     "eventType": "org.apache.flink.agents.api.InputEvent"
+ *     "eventType": "org.apache.flink.agents.api.InputEvent",
+ *     "eventClass": "org.apache.flink.agents.api.InputEvent",
  *     // Event-specific fields serialized normally
  *   }
  * }

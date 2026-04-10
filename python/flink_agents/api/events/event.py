@@ -104,14 +104,13 @@ class Event(BaseModel, extra="allow"):
             object.__setattr__(self, "id", self._generate_content_based_id())
 
     def get_type(self) -> str:
-        """Return the event type used for routing.
-
-        For events with ``type`` set, returns the type string.
-        Otherwise, falls back to the fully qualified class name.
-        """
-        if self.type is not None:
-            return self.type
-        return f"{self.__class__.__module__}.{self.__class__.__qualname__}"
+        """Return the event type string used for routing."""
+        if self.type is None:
+            raise ValueError(
+                f"{self.__class__.__name__} has no type set. "
+                "All events must have an explicit type string."
+            )
+        return self.type
 
     def get_attr(self, name: str) -> Any:
         """Get an attribute value from the attributes map."""
