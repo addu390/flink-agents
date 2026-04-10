@@ -17,7 +17,7 @@
 #################################################################################
 import hashlib
 import json
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 try:
     from typing import override
@@ -166,7 +166,7 @@ class InputEvent(Event):
         The input data arriving at the agent.
     """
 
-    EVENT_TYPE = "_input_event"
+    EVENT_TYPE: ClassVar[str] = "_input_event"
 
     def __init__(self, input: Any) -> None:
         super().__init__(
@@ -195,7 +195,7 @@ class OutputEvent(Event):
         The output result returned by the agent.
     """
 
-    EVENT_TYPE = "_output_event"
+    EVENT_TYPE: ClassVar[str] = "_output_event"
 
     def __init__(self, output: Any) -> None:
         super().__init__(

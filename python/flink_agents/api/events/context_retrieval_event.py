@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
-from typing import List
+from typing import ClassVar, List
 
 try:
     from typing import override
@@ -40,7 +40,7 @@ class ContextRetrievalRequestEvent(Event):
         Maximum number of results to return (default: 3)
     """
 
-    EVENT_TYPE = "_context_retrieval_request_event"
+    EVENT_TYPE: ClassVar[str] = "_context_retrieval_request_event"
 
     def __init__(
         self, query: str, vector_store: str, max_results: int = 3
@@ -91,7 +91,7 @@ class ContextRetrievalResponseEvent(Event):
         List of retrieved documents from the vector store
     """
 
-    EVENT_TYPE = "_context_retrieval_response_event"
+    EVENT_TYPE: ClassVar[str] = "_context_retrieval_response_event"
 
     def __init__(
         self, request_id: UUID, query: str, documents: List[Document]

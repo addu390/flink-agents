@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
-from typing import List
+from typing import ClassVar, List
 
 try:
     from typing import override
@@ -41,7 +41,7 @@ class ChatRequestEvent(Event):
         The expected output schema of the chat model final response. Optional.
     """
 
-    EVENT_TYPE = "_chat_request_event"
+    EVENT_TYPE: ClassVar[str] = "_chat_request_event"
 
     def __init__(
         self,
@@ -97,7 +97,7 @@ class ChatResponseEvent(Event):
         The total time spent waiting during retries in seconds.
     """
 
-    EVENT_TYPE = "_chat_response_event"
+    EVENT_TYPE: ClassVar[str] = "_chat_response_event"
 
     def __init__(
         self,

@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
-from typing import Any, Dict, List
+from typing import Any, ClassVar, Dict, List
 
 try:
     from typing import override
@@ -37,7 +37,7 @@ class ToolRequestEvent(Event):
         tool calls that should be executed in batch.
     """
 
-    EVENT_TYPE = "_tool_request_event"
+    EVENT_TYPE: ClassVar[str] = "_tool_request_event"
 
     def __init__(self, model: str, tool_calls: List[Dict[str, Any]]) -> None:
         super().__init__(
@@ -81,7 +81,7 @@ class ToolResponseEvent(Event):
         (e.g., Anthropic tool_use_id).
     """
 
-    EVENT_TYPE = "_tool_response_event"
+    EVENT_TYPE: ClassVar[str] = "_tool_response_event"
 
     def __init__(
         self,

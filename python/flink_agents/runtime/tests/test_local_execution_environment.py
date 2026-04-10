@@ -16,6 +16,7 @@
 # limitations under the License.
 #################################################################################
 import time
+from typing import ClassVar
 
 import pytest
 
@@ -163,7 +164,7 @@ def test_unified_event_workflow() -> None:
 class Step1Event(Event):
     """Custom event with a type string."""
 
-    EVENT_TYPE = "_step1_event"
+    EVENT_TYPE: ClassVar[str] = "_step1_event"
 
     def __init__(self, data: str) -> None:
         super().__init__(

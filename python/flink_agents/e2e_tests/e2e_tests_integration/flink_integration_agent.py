@@ -18,7 +18,7 @@
 import copy
 import random
 import time
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel
 from pyflink.common import Row
@@ -51,7 +51,7 @@ class ItemData(BaseModel):
 
 
 class MyEvent(Event):  # noqa D101
-    EVENT_TYPE = "_my_event"
+    EVENT_TYPE: ClassVar[str] = "_my_event"
 
     def __init__(self, value: Any) -> None:
         super().__init__(

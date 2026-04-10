@@ -17,7 +17,7 @@
 #################################################################################
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, ClassVar, Dict, List, Sequence
 
 import pytest
 
@@ -87,7 +87,7 @@ def test_to_agent_invalid_signature() -> None:  # noqa D103
 class MyEvent(Event):
     """Event for testing purposes."""
 
-    EVENT_TYPE = "_my_event"
+    EVENT_TYPE: ClassVar[str] = "_my_event"
 
     def __init__(self) -> None:
         super().__init__(type=MyEvent.EVENT_TYPE)

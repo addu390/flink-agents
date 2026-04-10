@@ -17,7 +17,7 @@
 #################################################################################
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 
@@ -39,7 +39,7 @@ class ProcessedData(BaseModel):  # noqa D101
 
 
 class MyEvent(Event):  # noqa D101
-    EVENT_TYPE = "_my_event"
+    EVENT_TYPE: ClassVar[str] = "_my_event"
 
     def __init__(self, value: Any) -> None:
         super().__init__(

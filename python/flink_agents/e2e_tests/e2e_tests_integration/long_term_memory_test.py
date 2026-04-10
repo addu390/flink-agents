@@ -21,7 +21,7 @@ import tempfile
 from datetime import datetime, timezone
 from importlib import resources
 from pathlib import Path
-from typing import Any, List
+from typing import Any, ClassVar, List
 
 try:
     from typing import override
@@ -112,7 +112,7 @@ class Record(BaseModel):  # noqa: D101
 
 
 class MyEvent(Event):  # noqa D101
-    EVENT_TYPE = "_my_event"
+    EVENT_TYPE: ClassVar[str] = "_my_event"
 
     def __init__(self, value: Any) -> None:
         super().__init__(
