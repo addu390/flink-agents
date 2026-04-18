@@ -198,6 +198,17 @@ class AgentPlan(BaseModel):
         return self.actions[action_name].config.get(key, None)
 
 
+def _resolve_event_type(event_type: type | str) -> str:
+    """Resolve an event type to its string routing key.
+
+    If event_type is already a string (dynamic identifier), return it as-is.
+    Otherwise, return the fully qualified class name.
+    """
+    if isinstance(event_type, str):
+        return event_type
+    return f"{event_type.__module__}.{event_type.__name__}"
+
+
 def _get_actions(agent: Agent) -> List[Action]:
     """Extract all registered agent actions from an agent.
 
@@ -219,8 +230,8 @@ def _get_actions(agent: Agent) -> List[Action]:
                     name=name,
                     exec=PythonFunction.from_callable(value.__func__),
                     listen_event_types=[
-                        f"{event_type.__module__}.{event_type.__name__}"
-                        for event_type in value._listen_events
+                        _resolve_event_type(et)
+                        for et in value._listen_events
                     ],
                 )
             )
@@ -230,8 +241,8 @@ def _get_actions(agent: Agent) -> List[Action]:
                     name=name,
                     exec=PythonFunction.from_callable(value),
                     listen_event_types=[
-                        f"{event_type.__module__}.{event_type.__name__}"
-                        for event_type in value._listen_events
+                        _resolve_event_type(et)
+                        for et in value._listen_events
                     ],
                 )
             )
@@ -241,8 +252,8 @@ def _get_actions(agent: Agent) -> List[Action]:
                 name=name,
                 exec=PythonFunction.from_callable(action[1]),
                 listen_event_types=[
-                    f"{event_type.__module__}.{event_type.__name__}"
-                    for event_type in action[0]
+                    _resolve_event_type(et)
+                    for et in action[0]
                 ],
                 config=action[2],
             )

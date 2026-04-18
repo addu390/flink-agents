@@ -85,7 +85,7 @@ class Agent(ABC):
                     )
     """
 
-    _actions: Dict[str, Tuple[List[Type[Event]], Callable, Dict[str, Any]]]
+    _actions: Dict[str, Tuple[List[Type[Event] | str], Callable, Dict[str, Any]]]
     _resources: Dict[ResourceType, Dict[str, Any]]
 
     def __init__(self) -> None:
@@ -96,7 +96,7 @@ class Agent(ABC):
             self._resources[type] = {}
 
     @property
-    def actions(self) -> Dict[str, Tuple[List[Type[Event]], Callable, Dict[str, Any]]]:
+    def actions(self) -> Dict[str, Tuple[List[Type[Event] | str], Callable, Dict[str, Any]]]:
         """Get added actions."""
         return self._actions
 
@@ -106,7 +106,7 @@ class Agent(ABC):
         return self._resources
 
     def add_action(
-        self, name: str, events: List[Type[Event]], func: Callable, **config: Any
+        self, name: str, events: List[Type[Event] | str], func: Callable, **config: Any
     ) -> "Agent":
         """Add action to agent.
 
@@ -114,8 +114,10 @@ class Agent(ABC):
         ----------
         name : str
             The name of the action, should be unique in the same Agent.
-        events: List[Type[Event]]
-            The type of events listened by this action.
+        events: List[Type[Event] | str]
+            The type of events or string identifiers listened by this action.
+            String identifiers match DynamicEvents sent via
+            ``ctx.send_event(identifier="...")``.
         func: Callable
             The function to be executed when receive listened events.
         **config: Any
