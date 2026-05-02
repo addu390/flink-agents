@@ -90,9 +90,12 @@ public class VectorStoreLongTermMemoryAgent extends Agent {
 
     /** Custom event type for internal agent communication. */
     public static class MyEvent extends Event {
+        public static final String EVENT_TYPE = "MyEvent";
+
         private final int recordId;
 
         public MyEvent(int recordId) {
+            super(EVENT_TYPE);
             this.recordId = recordId;
         }
 
@@ -145,7 +148,7 @@ public class VectorStoreLongTermMemoryAgent extends Agent {
                 .build();
     }
 
-    @Action(listenEvents = {InputEvent.class})
+    @Action(listenEventTypes = {InputEvent.EVENT_TYPE})
     public static void addItems(InputEvent event, RunnerContext ctx) throws Exception {
         BaseLongTermMemory ltm = ctx.getLongTermMemory();
         MemorySet memorySet =
@@ -166,7 +169,7 @@ public class VectorStoreLongTermMemoryAgent extends Agent {
         ctx.sendEvent(new MyEvent(review.id));
     }
 
-    @Action(listenEvents = {MyEvent.class})
+    @Action(listenEventTypes = {MyEvent.EVENT_TYPE})
     public static void retrieveItems(MyEvent event, RunnerContext ctx) throws Exception {
         int count = (int) ctx.getShortTermMemory().get("count").getValue();
 
