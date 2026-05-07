@@ -29,7 +29,7 @@ from flink_agents.api.events.context_retrieval_event import (
     ContextRetrievalRequestEvent,
     ContextRetrievalResponseEvent,
 )
-from flink_agents.api.events.event import InputEvent, OutputEvent
+from flink_agents.api.events.event import Event, InputEvent, OutputEvent
 from flink_agents.api.resource import (
     ResourceDescriptor,
     ResourceName,
@@ -39,6 +39,8 @@ from flink_agents.api.runner_context import RunnerContext
 from flink_agents.api.vector_stores.vector_store import (
     CollectionManageableVectorStore,
     Document,
+    VectorStoreQuery,
+    VectorStoreQueryMode,
 )
 
 TEST_COLLECTION = "test_collection"
@@ -95,15 +97,15 @@ class VectorStoreCrossLanguageAgent(Agent):
             dims=768,
         )
 
-    @action(InputEvent)
+    @action(InputEvent.EVENT_TYPE)
     @staticmethod
-    def process_input(event: InputEvent, ctx: RunnerContext) -> None:
+    def process_input(event: Event, ctx: RunnerContext) -> None:
         """User defined action for processing input.
 
         In this action, we will test Vector store Collection Management and
         Document Management.
         """
-        input_text = event.input
+        input_text = InputEvent.from_event(event).input
 
         stm = ctx.short_term_memory
 
@@ -140,20 +142,19 @@ class VectorStoreCrossLanguageAgent(Agent):
                 ]
                 vector_store.add(documents=documents)
 
-                # Test size
-                assert vector_store.size() == 3
+                assert len(vector_store.get()) == 3
 
                 # Test delete
                 vector_store.delete(ids="doc3")
 
                 # Wait for vector store to delete doc3
                 retry_time = 0
-                while vector_store.size() > 2 and retry_time < MAX_RETRIES_TIMES:
+                while len(vector_store.get()) > 2 and retry_time < MAX_RETRIES_TIMES:
                     retry_time += 1
                     time.sleep(2)
                     print(f"[TEST] Retrying to delete doc3, retry_time={retry_time}")
 
-                assert vector_store.size() == 2
+                assert len(vector_store.get()) == 2
 
                 # Test get
                 doc = vector_store.get(ids="doc2")
@@ -166,22 +167,51 @@ class VectorStoreCrossLanguageAgent(Agent):
 
                 print("[TEST] Vector store Document Management PASSED")
 
+                # Verify VectorStoreQuery.filters survives the Python->Java bridge.
+                # Elasticsearch translates the unified-DSL filter to a bool/must term
+                # post-filter, so the result must contain only the doc tagged
+                # ``category=calculate`` (doc1).
+                filtered_query = VectorStoreQuery(
+                    mode=VectorStoreQueryMode.SEMANTIC,
+                    query_text="sum",
+                    limit=10,
+                    filters={"category": "calculate"},
+                )
+
+                # ES is eventually consistent; allow a few retries.
+                retry_time = 0
+                filtered_docs = vector_store.query(filtered_query).documents
+                while (
+                    len(filtered_docs) != 1 and retry_time < MAX_RETRIES_TIMES
+                ):
+                    retry_time += 1
+                    time.sleep(2)
+                    filtered_docs = vector_store.query(filtered_query).documents
+
+                assert len(filtered_docs) == 1, (
+                    f"Filter {{category=calculate}} should match 1 doc, got "
+                    f"{len(filtered_docs)}"
+                )
+                assert filtered_docs[0].id == "doc1"
+
+                print("[TEST] Vector store filter query PASSED")
+
             stm.set("is_initialized", True)
 
         ctx.send_event(
             ContextRetrievalRequestEvent(query=input_text, vector_store="vector_store")
         )
 
-    @action(ContextRetrievalResponseEvent)
+    @action(ContextRetrievalResponseEvent.EVENT_TYPE)
     @staticmethod
     def contextRetrievalResponseEvent(
-        event: ContextRetrievalResponseEvent, ctx: RunnerContext
+        event: Event, ctx: RunnerContext
     ) -> None:
         """User defined action for processing context retrieval response.
 
         In this action, we will test Vector store Context Retrieval.
         """
-        documents = event.documents
+        documents = ContextRetrievalResponseEvent.from_event(event).documents
 
         assert documents is not None
         assert len(documents) > 0

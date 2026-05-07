@@ -16,14 +16,14 @@
 # limitations under the License.
 #################################################################################
 import importlib
-import json
 import typing
 from typing import Any, Dict
 
 import cloudpickle
 
 from flink_agents.api.chat_message import ChatMessage, MessageRole
-from flink_agents.api.events.event import Event, InputEvent
+from flink_agents.api.events.event import Event, InputEvent, OutputEvent
+from flink_agents.api.memory.long_term_memory import MemorySet, MemorySetItem
 from flink_agents.api.resource import Resource, ResourceType, get_resource_class
 from flink_agents.api.tools.tool import Tool, ToolMetadata
 from flink_agents.api.tools.utils import (
@@ -45,34 +45,35 @@ from flink_agents.runtime.java.java_resource_wrapper import (
 
 
 def convert_to_python_object(bytesObject: bytes) -> Any:
-    """Used for deserializing Python objects."""
+    """Used for deserializing Python objects (e.g. durable execution results)."""
     return cloudpickle.loads(bytesObject)
 
 
-def _build_event_log_string(event: InputEvent | Event, event_type: str) -> str:
-    try:
-        payload = json.loads(event.model_dump_json())
-        payload["eventType"] = event_type
-        payload.setdefault("attributes", {})
-        return json.dumps(payload)
-    except Exception:
-        return str(event)
+def convert_json_to_python_event(event_json: str) -> Event:
+    """Deserialize a JSON string into a base Python Event object.
+
+    Called from Java via PythonActionExecutor to convert a Java Event
+    (serialized as JSON) into a Python Event for action dispatch.
+    Actions that need a typed subclass should call
+    ``SubClass.from_event(event)`` themselves.
+    """
+    return Event.from_json(event_json)
 
 
-def wrap_to_input_event(bytesObject: bytes) -> tuple[bytes, str]:
-    """Wrap data to python input event and serialize.
+def wrap_to_input_event(bytesObject: bytes) -> str:
+    """Wrap data to python input event and serialize as JSON.
 
     Returns:
-        A tuple of (serialized_event_bytes, event_json_str)
+        JSON string of the InputEvent
     """
     event = InputEvent(input=cloudpickle.loads(bytesObject))
-    event_type = f"{event.__class__.__module__}.{event.__class__.__qualname__}"
-    return (cloudpickle.dumps(event), _build_event_log_string(event, event_type))
+    return event.model_dump_json()
 
 
-def get_output_from_output_event(bytesObject: bytes) -> Any:
-    """Get output data from OutputEvent and serialize."""
-    return cloudpickle.dumps(convert_to_python_object(bytesObject).output)
+def get_output_from_output_event(event_json: str) -> Any:
+    """Get output data from OutputEvent JSON and serialize."""
+    event = OutputEvent.from_event(convert_json_to_python_event(event_json))
+    return cloudpickle.dumps(event.output)
 
 
 def create_resource(
@@ -257,6 +258,7 @@ def from_java_vector_store_query(j_query: Any) -> VectorStoreQuery:
         query_text=j_query.getQueryText(),
         limit=j_query.getLimit(),
         collection_name=j_query.getCollection(),
+        filters=j_query.getFilters(),
         extra_args=j_query.getExtraArgs(),
     )
 
@@ -289,6 +291,42 @@ def get_java_tool_metadata_from_tool(tool: Tool) -> typing.Dict[str, str]:
 def get_mode_value(query: VectorStoreQuery) -> str:
     """Get the mode value of a VectorStoreQuery."""
     return query.mode.value
+
+
+def get_long_term_memory(ctx: Any) -> Any:
+    """Return ``ctx.long_term_memory`` (or ``None``). Used by the Java side to
+    avoid relying on Pemja's ``PyObject.getAttr`` semantics for attributes that
+    may be ``None`` or wrapped Pydantic BaseModel instances.
+    """
+    return ctx.long_term_memory
+
+
+def to_python_memory_set(name: str) -> MemorySet:
+    """Build a Python ``MemorySet`` from its name. Used by the Java
+    ``Mem0LongTermMemory`` wrapper to forward calls into Python ``Mem0LongTermMemory``,
+    which expects a ``MemorySet`` instance but only reads its ``name`` field.
+    """
+    return MemorySet(name=name)
+
+
+def mem0_items_to_java(
+    items: typing.List[MemorySetItem],
+) -> typing.List[Dict[str, Any]]:
+    """Convert a list of ``MemorySetItem`` to plain dicts so the Java side can
+    consume them without PyObject reflection. Datetimes are serialised to ISO 8601
+    strings; ``None`` fields are preserved.
+    """
+    return [
+        {
+            "memory_set_name": it.memory_set_name,
+            "id": it.id,
+            "value": it.value,
+            "created_at": it.created_at.isoformat() if it.created_at else None,
+            "updated_at": it.updated_at.isoformat() if it.updated_at else None,
+            "additional_metadata": it.additional_metadata,
+        }
+        for it in items
+    ]
 
 
 def call_method(obj: Any, method_name: str, kwargs: Dict[str, Any]) -> Any:
